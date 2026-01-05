@@ -9,14 +9,11 @@ from sensor_msgs.msg import JointState
 from tf2_ros import TransformBroadcaster
 import serial
 import time
-import tkinter as tk
-from tkinter import ttk
-import threading
 import math
 
-class ESP32CommunicationNode(Node):
+class RobotNode(Node):
     def __init__(self):
-        super().__init__('esp32_communication_node')
+        super().__init__('robot_node')
 
         # Publisher for encoder values
         self.encoder_publisher = self.create_publisher(String, 'esp32_encoders', 10)
@@ -44,11 +41,6 @@ class ESP32CommunicationNode(Node):
         self.baudrate = 115200
         self.reconnect_interval = 5.0  # seconds
         self.last_reconnect_attempt = 0
-        
-        # Encoder values for GUI display
-        self.encoder1_value = 0
-        self.encoder2_value = 0
-        self.speed_value = 50  # Default speed (0-100)
         
         # Odometry parameters (updated with actual robot dimensions)
         self.wheel_diameter = 0.06858  # meters (2.7 inches)
@@ -121,15 +113,15 @@ class ESP32CommunicationNode(Node):
                     msg.data = data.replace("ENCODER:", "")
                     self.encoder_publisher.publish(msg)
                     
-                    # Parse encoder values for GUI display
+                    # Parse encoder values for odometry
                     try:
                         parts = msg.data.split(',')
                         if len(parts) >= 2:
-                            self.encoder1_value = int(parts[0].strip())
-                            self.encoder2_value = int(parts[1].strip())
+                            encoder1 = int(parts[0].strip())
+                            encoder2 = int(parts[1].strip())
                             
                             # Calculate and publish odometry
-                            self.update_odometry(self.encoder1_value, self.encoder2_value)
+                            self.update_odometry(encoder1, encoder2)
                     except (ValueError, IndexError):
                         pass
         except (serial.SerialException, OSError) as e:
@@ -292,44 +284,6 @@ class ESP32CommunicationNode(Node):
             self.serial_port = None
         except Exception as e:
             self.get_logger().error(f'Unexpected error while writing to serial port: {e}')
-    
-    def send_command(self, command):
-        """Send command directly (for GUI)"""
-        if not self.serial_port or not self.serial_port.is_open:
-            self.get_logger().warn('Cannot send command: Serial port not connected')
-            return
-
-        try:
-            # Convert speed from 0-100 to 0-255 for ESP32
-            speed_pwm = int((self.speed_value / 100.0) * 255)
-            # Format: "command:speed" (lowercase command)
-            full_command = f"{command.lower()}:{speed_pwm}"
-            self.serial_port.write(f"{full_command}\n".encode('utf-8'))
-            self.get_logger().info(f'Sent command to ESP32: {full_command}')
-        except serial.SerialException as e:
-            self.get_logger().warn(f'Serial port error while writing: {e}')
-            try:
-                if self.serial_port:
-                    self.serial_port.close()
-            except:
-                pass
-            self.serial_port = None
-        except OSError as e:
-            self.get_logger().warn(f'Serial port I/O error while writing: {e}')
-            try:
-                if self.serial_port:
-                    self.serial_port.close()
-            except:
-                pass
-            self.serial_port = None
-        except Exception as e:
-            self.get_logger().error(f'Unexpected error while writing to serial port: {e}')
-            try:
-                if self.serial_port:
-                    self.serial_port.close()
-            except:
-                pass
-            self.serial_port = None
 
     def __del__(self):
         """Cleanup on node destruction"""
@@ -342,184 +296,24 @@ class ESP32CommunicationNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ESP32CommunicationNode()
+    node = RobotNode()
     
-    # Create GUI
-    root = tk.Tk()
-    root.title("ESP32 Robot Control")
-    root.geometry("500x600")
+    print("\n" + "="*50)
+    print("Robot Node Started")
+    print("="*50)
+    print(f"\nListening for commands on /esp32_commands topic")
+    print(f"Publishing encoder data to /esp32_encoders topic")
+    print(f"Publishing odometry to /odom topic")
+    print(f"Serial port: {node.port_name}")
+    print("="*50 + "\n")
     
-    # Main frame
-    main_frame = ttk.Frame(root, padding="10")
-    main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-    
-    # Title
-    title_label = ttk.Label(main_frame, text="ESP32 Robot Controller", font=('Arial', 16, 'bold'))
-    title_label.grid(row=0, column=0, columnspan=3, pady=10)
-    
-    # Direction buttons
-    control_frame = ttk.Frame(main_frame)
-    control_frame.grid(row=1, column=0, columnspan=3, pady=20)
-    
-    def send_front():
-        node.send_command("backward")
-    
-    def send_back():
-        node.send_command("forward")
-    
-    def send_left():
-        node.send_command("left")
-    
-    def send_right():
-        node.send_command("right")
-    
-    def send_stop():
-        node.send_command("stop")
-    
-    # Front button
-    front_btn = tk.Button(control_frame, text="FRONT", width=10, height=2, 
-                          bg='#4CAF50', fg='white', font=('Arial', 12, 'bold'),
-                          command=send_front)
-    front_btn.grid(row=0, column=1, padx=5, pady=5)
-    
-    # Left button
-    left_btn = tk.Button(control_frame, text="LEFT", width=10, height=2,
-                         bg='#2196F3', fg='white', font=('Arial', 12, 'bold'),
-                         command=send_left)
-    left_btn.grid(row=1, column=0, padx=5, pady=5)
-    
-    # Stop button
-    stop_btn = tk.Button(control_frame, text="STOP", width=10, height=2,
-                         bg='#f44336', fg='white', font=('Arial', 12, 'bold'),
-                         command=send_stop)
-    stop_btn.grid(row=1, column=1, padx=5, pady=5)
-    
-    # Right button
-    right_btn = tk.Button(control_frame, text="RIGHT", width=10, height=2,
-                          bg='#2196F3', fg='white', font=('Arial', 12, 'bold'),
-                          command=send_right)
-    right_btn.grid(row=1, column=2, padx=5, pady=5)
-    
-    # Back button
-    back_btn = tk.Button(control_frame, text="BACK", width=10, height=2,
-                         bg='#FF9800', fg='white', font=('Arial', 12, 'bold'),
-                         command=send_back)
-    back_btn.grid(row=2, column=1, padx=5, pady=5)
-    
-    # Speed control
-    speed_frame = ttk.Frame(main_frame)
-    speed_frame.grid(row=2, column=0, columnspan=3, pady=20)
-    
-    speed_label = ttk.Label(speed_frame, text="Speed Control:", font=('Arial', 12))
-    speed_label.grid(row=0, column=0, columnspan=2, pady=5)
-    
-    speed_value_label = ttk.Label(speed_frame, text="50", font=('Arial', 14, 'bold'))
-    speed_value_label.grid(row=1, column=0, columnspan=2, pady=5)
-    
-    def update_speed(val):
-        speed = int(float(val))
-        node.speed_value = speed
-        speed_value_label.config(text=str(speed))
-    
-    speed_slider = ttk.Scale(speed_frame, from_=0, to=100, orient=tk.HORIZONTAL,
-                            length=300, command=update_speed)
-    speed_slider.set(50)
-    speed_slider.grid(row=2, column=0, columnspan=2, pady=5)
-    
-    # Encoder display
-    encoder_frame = ttk.LabelFrame(main_frame, text="Encoder Values", padding="10")
-    encoder_frame.grid(row=3, column=0, columnspan=3, pady=20, sticky=(tk.W, tk.E))
-    
-    encoder1_label = ttk.Label(encoder_frame, text="Encoder 1:", font=('Arial', 11))
-    encoder1_label.grid(row=0, column=0, sticky=tk.W, pady=5)
-    
-    encoder1_value_label = ttk.Label(encoder_frame, text="0", font=('Arial', 11, 'bold'))
-    encoder1_value_label.grid(row=0, column=1, sticky=tk.W, pady=5, padx=10)
-    
-    encoder2_label = ttk.Label(encoder_frame, text="Encoder 2:", font=('Arial', 11))
-    encoder2_label.grid(row=1, column=0, sticky=tk.W, pady=5)
-    
-    encoder2_value_label = ttk.Label(encoder_frame, text="0", font=('Arial', 11, 'bold'))
-    encoder2_value_label.grid(row=1, column=1, sticky=tk.W, pady=5, padx=10)
-    
-    # Odometry display
-    odom_frame = ttk.LabelFrame(main_frame, text="Odometry", padding="10")
-    odom_frame.grid(row=4, column=0, columnspan=3, pady=10, sticky=(tk.W, tk.E))
-    
-    pos_x_label = ttk.Label(odom_frame, text="X Position:", font=('Arial', 10))
-    pos_x_label.grid(row=0, column=0, sticky=tk.W, pady=3)
-    pos_x_value = ttk.Label(odom_frame, text="0.00 m", font=('Arial', 10, 'bold'))
-    pos_x_value.grid(row=0, column=1, sticky=tk.W, pady=3, padx=10)
-    
-    pos_y_label = ttk.Label(odom_frame, text="Y Position:", font=('Arial', 10))
-    pos_y_label.grid(row=1, column=0, sticky=tk.W, pady=3)
-    pos_y_value = ttk.Label(odom_frame, text="0.00 m", font=('Arial', 10, 'bold'))
-    pos_y_value.grid(row=1, column=1, sticky=tk.W, pady=3, padx=10)
-    
-    theta_label = ttk.Label(odom_frame, text="Heading:", font=('Arial', 10))
-    theta_label.grid(row=2, column=0, sticky=tk.W, pady=3)
-    theta_value = ttk.Label(odom_frame, text="0.0°", font=('Arial', 10, 'bold'))
-    theta_value.grid(row=2, column=1, sticky=tk.W, pady=3, padx=10)
-    
-    vel_linear_label = ttk.Label(odom_frame, text="Linear Vel:", font=('Arial', 10))
-    vel_linear_label.grid(row=0, column=2, sticky=tk.W, pady=3, padx=(20, 0))
-    vel_linear_value = ttk.Label(odom_frame, text="0.00 m/s", font=('Arial', 10, 'bold'))
-    vel_linear_value.grid(row=0, column=3, sticky=tk.W, pady=3, padx=10)
-    
-    vel_angular_label = ttk.Label(odom_frame, text="Angular Vel:", font=('Arial', 10))
-    vel_angular_label.grid(row=1, column=2, sticky=tk.W, pady=3, padx=(20, 0))
-    vel_angular_value = ttk.Label(odom_frame, text="0.00 rad/s", font=('Arial', 10, 'bold'))
-    vel_angular_value.grid(row=1, column=3, sticky=tk.W, pady=3, padx=10)
-    
-    # Status label
-    status_label = ttk.Label(main_frame, text="Status: Ready", font=('Arial', 10))
-    status_label.grid(row=5, column=0, columnspan=3, pady=10)
-    
-    def update_gui():
-        """Update GUI with latest encoder values"""
-        try:
-            encoder1_value_label.config(text=str(node.encoder1_value))
-            encoder2_value_label.config(text=str(node.encoder2_value))
-            
-            # Update odometry display
-            pos_x_value.config(text=f"{node.x:.2f} m")
-            pos_y_value.config(text=f"{node.y:.2f} m")
-            theta_value.config(text=f"{math.degrees(node.theta):.1f}°")
-            vel_linear_value.config(text=f"{node.linear_velocity:.2f} m/s")
-            vel_angular_value.config(text=f"{node.angular_velocity:.2f} rad/s")
-            
-            # Update status
-            if node.serial_port and node.serial_port.is_open:
-                status_label.config(text="Status: Connected", foreground='green')
-            else:
-                status_label.config(text="Status: Disconnected", foreground='red')
-            
-            # Process ROS2 events - very fast for real-time
-            rclpy.spin_once(node, timeout_sec=0.001)
-            
-            # Schedule next update (20ms for real-time updates)
-            root.after(20, update_gui)
-        except Exception as e:
-            print(f"GUI update error: {e}")
-            root.after(20, update_gui)
-    
-    # Start GUI update loop
-    update_gui()
-    
-    # Run ROS2 in separate thread
-    def ros_spin():
+    try:
         rclpy.spin(node)
-    
-    # Handle window close
-    def on_closing():
+    except KeyboardInterrupt:
+        pass
+    finally:
         node.destroy_node()
         rclpy.shutdown()
-        root.destroy()
-    
-    root.protocol("WM_DELETE_WINDOW", on_closing)
-    
-    # Start tkinter main loop
-    root.mainloop()
 
 if __name__ == '__main__':
     main()

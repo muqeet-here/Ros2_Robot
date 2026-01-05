@@ -25,7 +25,8 @@ endif()
 
 install(
   PROGRAMS
-    esp32_communication_node.py
+    robot_node.py
+    control_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
