@@ -15,7 +15,6 @@ __pycache__/
 .Python
 
 # IDEs
-.vscode/
 .idea/
 *.swp
 *.swo
