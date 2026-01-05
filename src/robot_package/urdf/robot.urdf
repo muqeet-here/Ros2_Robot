@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<robot name="esp32_robot">
+  
+  <!-- Base Link (Chassis: 7"L x 9"W x height, 2" above ground) -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.2286 0.1778  0.04"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.2 0.4 0.8 1.0"/>
+      </material>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.2286 0.1778  0.04"/>
+      </geometry>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <!-- left_wheel (2.7" diameter, 1.026" width) - BACK RIGHT -->
+  <link name="right_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="0.03429" length="0.026"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.03429" length="0.026"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel"/>
+    <origin xyz="-0.0889 -0.1143 0.03429" rpy="0 0 0"/>
+    <axis xyz="0 -1 0"/>
+  </joint>
+
+  <!-- right_wheel (2.7" diameter, 1.026" width) - BACK LEFT -->
+  <link name="left_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="0.03429" length="0.026"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.03429" length="0.026"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_wheel"/>
+    <origin xyz="-0.0889 0.1143 0.03429" rpy="0 0 0"/>
+    <axis xyz="0 -1 0"/>
+  </joint>
+
+  <!-- Caster Wheel (Front) -->
+  <link name="caster_wheel">
+    <visual>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="caster_wheel_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_wheel"/>
+    <origin xyz="0.0889 0 0.02" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Direction Indicator (Front Arrow) -->
+  <link name="direction_indicator">
+    <visual>
+      <geometry>
+        <box size="0.04 0.015 0.015"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1.0 0.2 0.2 1.0"/>
+      </material>
+      <origin xyz="0.02 0 0" rpy="0 0 0"/>
+    </visual>
+  </link>
+
+  <joint name="direction_indicator_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="direction_indicator"/>
+    <origin xyz="0.0889 0 0.02" rpy="0 0 0"/>
+  </joint>
+
+</robot>

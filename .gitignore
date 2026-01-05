@@ -1,0 +1,32 @@
+# ROS2 build artifacts
+build/
+install/
+log/
+
+# Colcon artifacts
+.colcon_install_layout
+*.colcon_install_layout
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+
+# ROS2 specific
+COLCON_IGNORE
+*.autosave
